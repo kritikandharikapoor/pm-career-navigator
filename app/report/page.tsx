@@ -163,12 +163,19 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-function DimensionBar({ score, showBenchmark = true }: { score: number; showBenchmark?: boolean }) {
+function getCompetencyColor(score: number): string {
+  if (score >= 3.5) return "#22C55E";
+  if (score >= 2.0) return "#F59E0B";
+  return "#EF4444";
+}
+
+function DimensionBar({ score, showBenchmark = true, color }: { score: number; showBenchmark?: boolean; color?: string }) {
   const pct = (score / 5) * 100;
   const benchmarkPct = (3.5 / 5) * 100;
+  const barStyle = color ? { width: `${pct}%`, backgroundColor: color } : { width: `${pct}%`, background: "linear-gradient(to right, #38BDF8, #2DD4BF)" };
   return (
     <div className="relative w-full h-2 rounded-full" style={{ backgroundColor: "rgba(56,189,248,0.08)" }}>
-      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(to right, #38BDF8, #2DD4BF)" }} />
+      <div className="h-full rounded-full" style={barStyle} />
       {showBenchmark && (
         <div className="absolute top-0 h-full w-px" style={{ left: `${benchmarkPct}%`, backgroundColor: "rgba(232,239,248,0.35)" }} />
       )}
@@ -214,22 +221,23 @@ function DimensionSection({ dim, score }: { dim: DimensionConfig; score: number 
         {insight}
       </p>
 
-      {/* Sub-categories */}
+      {/* Competencies */}
       <div className="flex flex-col gap-3 pt-1 pl-1">
         <span className="text-xs font-medium tracking-widest uppercase" style={{ color: "rgba(232,239,248,0.25)" }}>
-          Sub-categories
+          Competencies
         </span>
         {dim.subcategories.map((sub) => {
           const subVal = clamp(score + sub.offset);
+          const barColor = getCompetencyColor(subVal);
           return (
             <div key={sub.name} className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-xs">
                 <span style={{ color: "rgba(232,239,248,0.6)" }}>{sub.name}</span>
-                <span className="tabular-nums font-medium" style={{ color: "rgba(232,239,248,0.5)" }}>
+                <span className="tabular-nums font-medium" style={{ color: barColor }}>
                   {subVal.toFixed(1)}
                 </span>
               </div>
-              <DimensionBar score={subVal} showBenchmark={false} />
+              <DimensionBar score={subVal} showBenchmark={false} color={barColor} />
             </div>
           );
         })}
