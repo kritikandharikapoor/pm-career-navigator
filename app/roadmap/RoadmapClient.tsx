@@ -152,9 +152,19 @@ export default function RoadmapClient({ archetype, scores, userId, completedStep
     : "Select resources";
 
   // Mark step as done
+  // Note: if FK error persists, verify the user exists in auth.users via Supabase dashboard
   async function markDone(topicKey: string, dimension: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      console.log("No authenticated user found");
+      return;
+    }
+
+    console.log("Inserting roadmap_progress for user:", user.id);
+
     const { error } = await supabase.from("roadmap_progress").insert({
-      user_id: userId,
+      user_id: user.id,
       step_id: topicKey,
       dimension,
     });
