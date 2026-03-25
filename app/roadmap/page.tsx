@@ -16,6 +16,9 @@ export default async function RoadmapPage() {
     .eq("id", user.id)
     .single();
 
+  console.log("Raw scores from DB:", profile?.scores);
+  console.log("Full user_profiles row:", JSON.stringify(profile));
+
   if (!profile?.has_paid) redirect("/payment");
 
   const { data: progressRows } = await supabase
@@ -27,14 +30,22 @@ export default async function RoadmapPage() {
     (r: { step_id: string }) => r.step_id
   );
 
-  const scores = (profile.scores ?? {
-    thinkingStrategy: 2.5,
-    execution: 2.5,
-    technicalFluency: 2.5,
-    userResearch: 2.5,
-    communication: 2.5,
-    overall: 2.5,
-  }) as Scores;
+  const rawScores = profile?.scores as Record<string, number> | null;
+  const DIM_KEYS = ["thinkingStrategy", "execution", "technicalFluency", "userResearch", "communication", "overall"];
+  DIM_KEYS.forEach((k) => {
+    if (!rawScores || rawScores[k] === undefined) {
+      console.warn(`Score missing for key: ${k}`, rawScores);
+    }
+  });
+
+  const scores: Scores = {
+    thinkingStrategy: rawScores?.thinkingStrategy ?? 0,
+    execution:        rawScores?.execution        ?? 0,
+    technicalFluency: rawScores?.technicalFluency ?? 0,
+    userResearch:     rawScores?.userResearch     ?? 0,
+    communication:    rawScores?.communication    ?? 0,
+    overall:          rawScores?.overall          ?? 0,
+  };
 
   return (
     <div className="flex" style={{ backgroundColor: "#0D1117", minHeight: "100vh" }}>

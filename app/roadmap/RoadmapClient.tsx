@@ -471,7 +471,7 @@ export default function RoadmapClient({ archetype, scores, userId, completedStep
                           whiteSpace: "pre-wrap",
                         }}
                       >
-                        {step.content}
+                        {contentLibrary[archetypeKey]?.[step.topicKey] ?? step.content}
                       </p>
                     )}
                   </div>
