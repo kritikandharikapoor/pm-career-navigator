@@ -16,10 +16,27 @@ export default async function RoadmapPage() {
     .eq("id", user.id)
     .single();
 
-  console.log("Raw scores from DB:", profile?.scores);
-  console.log("Full user_profiles row:", JSON.stringify(profile));
-
   if (!profile?.has_paid) redirect("/payment");
+
+  // Record first visit timestamp — separate query so a missing column doesn't
+  // break the main profile fetch and payment gate above.
+  let firstVisit = new Date().toISOString();
+  const { data: visitRow, error: visitError } = await supabase
+    .from("user_profiles")
+    .select("first_roadmap_visit")
+    .eq("id", user.id)
+    .single();
+
+  if (!visitError && visitRow?.first_roadmap_visit) {
+    firstVisit = visitRow.first_roadmap_visit as string;
+  } else if (!visitError) {
+    // Column exists but null — set it now
+    await supabase
+      .from("user_profiles")
+      .update({ first_roadmap_visit: firstVisit })
+      .eq("id", user.id);
+  }
+  // If visitError (column not yet migrated), firstVisit stays as current date
 
   const { data: progressRows } = await supabase
     .from("roadmap_progress")
@@ -31,13 +48,6 @@ export default async function RoadmapPage() {
   );
 
   const rawScores = profile?.scores as Record<string, number> | null;
-  const DIM_KEYS = ["thinkingStrategy", "execution", "technicalFluency", "userResearch", "communication", "overall"];
-  DIM_KEYS.forEach((k) => {
-    if (!rawScores || rawScores[k] === undefined) {
-      console.warn(`Score missing for key: ${k}`, rawScores);
-    }
-  });
-
   const scores: Scores = {
     thinkingStrategy: rawScores?.thinkingStrategy ?? 0,
     execution:        rawScores?.execution        ?? 0,
@@ -59,6 +69,7 @@ export default async function RoadmapPage() {
           scores={scores}
           userId={user.id}
           completedStepIds={completedStepIds}
+          firstVisit={firstVisit}
         />
       </main>
     </div>
