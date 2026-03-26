@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase"; // used for auth check + profile fetch
 import {
   reevalQuestions,
   type ReevalQuestion,
@@ -20,13 +20,7 @@ const DIM_LABELS: Record<ReevalDimension, string> = {
   communication:    "Communication",
 };
 
-const DIM_COLORS: Record<ReevalDimension, string> = {
-  thinkingStrategy: "#38BDF8",
-  execution:        "#A855F7",
-  technicalFluency: "#22C55E",
-  userResearch:     "#F59E0B",
-  communication:    "#EF4444",
-};
+const ACCENT = "#38BDF8";
 
 const REINFORCEMENT = [
   "Good thinking — you are reasoning like a PM.",
@@ -231,21 +225,11 @@ export default function ReevaluatePage() {
 
   async function saveResults(finalAnswers: Answer[]) {
     const newScores = computeNewScores(finalAnswers);
-    const supabase = createClient();
 
-    await supabase
-      .from("user_profiles")
-      .update({ scores: newScores })
-      .eq("id", userId);
-
-    await supabase.from("score_history").insert({
-      user_id:           userId,
-      overall_score:     newScores.overall,
-      thinking_strategy: newScores.thinkingStrategy,
-      execution:         newScores.execution,
-      technical_fluency: newScores.technicalFluency,
-      user_research:     newScores.userResearch,
-      communication:     newScores.communication,
+    await fetch("/api/save-reeval-scores", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newScores),
     });
 
     router.push("/dashboard");
@@ -276,10 +260,8 @@ export default function ReevaluatePage() {
 
   // ── Question UI ─────────────────────────────────────────────────────────
   const q         = questions[qIdx];
-  const dim       = q.dimension;
-  const dimColor  = DIM_COLORS[dim];
-  const dimLabel  = DIM_LABELS[dim];
-  const isWeakest = dim === weakestDim;
+  const dimLabel  = DIM_LABELS[q.dimension];
+  const isWeakest = q.dimension === weakestDim;
   const pct       = Math.round(((qIdx + 1) / 30) * 100);
 
   return (
@@ -300,9 +282,9 @@ export default function ReevaluatePage() {
               <span
                 className="text-xs px-3 py-1 rounded-full font-medium"
                 style={{
-                  backgroundColor: `${dimColor}1A`,
-                  border: `1px solid ${dimColor}33`,
-                  color: dimColor,
+                  backgroundColor: "rgba(56,189,248,0.1)",
+                  border: "1px solid rgba(56,189,248,0.2)",
+                  color: ACCENT,
                 }}
               >
                 {dimLabel}
@@ -310,7 +292,7 @@ export default function ReevaluatePage() {
             </div>
 
             {isWeakest && (
-              <p className="text-xs" style={{ color: `${dimColor}AA` }}>
+              <p className="text-xs" style={{ color: "rgba(56,189,248,0.65)" }}>
                 More questions here — this is your biggest opportunity area
               </p>
             )}
@@ -322,7 +304,7 @@ export default function ReevaluatePage() {
               >
                 <div
                   className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${pct}%`, backgroundColor: dimColor }}
+                  style={{ width: `${pct}%`, backgroundColor: ACCENT }}
                 />
               </div>
               <span className="text-xs tabular-nums" style={{ color: "rgba(232,239,248,0.4)" }}>
@@ -349,14 +331,14 @@ export default function ReevaluatePage() {
                   onClick={() => handleSelect(option.letter)}
                   className="flex items-start gap-4 px-4 py-4 rounded-xl text-sm text-left w-full transition-all duration-150 active:scale-[0.99]"
                   style={{
-                    backgroundColor: isSelected ? `${dimColor}1A` : "rgba(232,239,248,0.04)",
-                    border: `1.5px solid ${isSelected ? dimColor : "rgba(232,239,248,0.08)"}`,
+                    backgroundColor: isSelected ? "rgba(56,189,248,0.1)" : "rgba(232,239,248,0.04)",
+                    border: `1.5px solid ${isSelected ? ACCENT : "rgba(232,239,248,0.08)"}`,
                   }}
                 >
                   <span
                     className="flex-shrink-0 w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center transition-all duration-150"
                     style={{
-                      backgroundColor: isSelected ? dimColor : "rgba(232,239,248,0.08)",
+                      backgroundColor: isSelected ? ACCENT : "rgba(232,239,248,0.08)",
                       color: isSelected ? "#0D1117" : "rgba(232,239,248,0.5)",
                     }}
                   >
@@ -390,14 +372,14 @@ export default function ReevaluatePage() {
                   backgroundColor: "rgba(232,239,248,0.04)",
                   border: "1px solid rgba(232,239,248,0.1)",
                   color: "#E8EFF8",
-                  caretColor: dimColor,
+                  caretColor: ACCENT,
                 }}
               />
               {reinforcement && (
                 <p
                   className="text-xs"
                   style={{
-                    color: dimColor,
+                    color: ACCENT,
                     opacity: reinforcementVisible ? 1 : 0,
                     transition: "opacity 0.35s ease",
                   }}
@@ -414,8 +396,8 @@ export default function ReevaluatePage() {
             disabled={!selected}
             className="w-full py-3.5 rounded-full text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
             style={{
-              backgroundColor: selected ? dimColor : `${dimColor}20`,
-              color: selected ? "#0D1117" : `${dimColor}60`,
+              backgroundColor: selected ? ACCENT : "rgba(56,189,248,0.12)",
+              color: selected ? "#0D1117" : "rgba(56,189,248,0.4)",
               cursor: selected ? "pointer" : "not-allowed",
             }}
           >
