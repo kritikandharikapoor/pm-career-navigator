@@ -1,22 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase";
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
-  const [origin, setOrigin] = useState("");
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  const [error, setError]     = useState("");
 
   async function handleGoogleSignIn() {
     setLoading(true);
+    setError("");
 
-    // FIX 3 — Pass localStorage data as URL params in the redirectTo URL.
-    // Cookies were unreliable across OAuth redirects on Vercel (SameSite / domain issues).
-    // URL params survive the full OAuth round-trip and are available in the callback.
+    // Read localStorage data and pass as URL params in redirectTo.
+    // Using window.location.origin directly (not state) avoids a race where
+    // state hasn't been set yet when the button is clicked.
     const params = new URLSearchParams();
     const lsKeys: [string, string][] = [
       ["assessment_scores",    "assessment_scores"],
@@ -30,14 +27,19 @@ export default function SignupPage() {
       if (val) params.set(paramKey, val);
     });
 
-    const redirectTo = `${origin}/auth/callback?${params.toString()}`;
+    const redirectTo = `${window.location.origin}/auth/callback?${params.toString()}`;
 
     const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
     });
-    // Page redirects — no need to setLoading(false)
+
+    if (oauthError) {
+      setError(oauthError.message);
+      setLoading(false);
+    }
+    // On success the browser navigates away — no need to setLoading(false)
   }
 
   return (
@@ -99,6 +101,12 @@ export default function SignupPage() {
             </>
           )}
         </button>
+
+        {error && (
+          <p className="text-xs text-center" style={{ color: "#EF4444" }}>
+            {error}
+          </p>
+        )}
 
         <p className="text-xs text-center" style={{ color: "rgba(232,239,248,0.25)" }}>
           By continuing you agree to our terms. No spam, ever.
