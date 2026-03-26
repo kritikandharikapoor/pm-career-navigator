@@ -27,33 +27,52 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const scores = await request.json();
+    const newScores = await request.json();
 
+    // Read current scores to extract existing history
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("scores")
+      .eq("id", user.id)
+      .single();
+
+    const existing = (profile?.scores ?? {}) as Record<string, unknown>;
+    const existingHistory = Array.isArray(existing.history) ? existing.history : [];
+
+    // Append current (pre-reeval) overall score as the baseline entry if history is empty
+    if (existingHistory.length === 0 && typeof existing.overall === "number") {
+      existingHistory.push({
+        overall: existing.overall,
+        evaluated_at: new Date().toISOString(),
+      });
+    }
+
+    // Append the new evaluation
+    existingHistory.push({
+      overall: newScores.overall,
+      evaluated_at: new Date().toISOString(),
+    });
+
+    // Save new scores + embedded history to user_profiles
     const { error: profileError } = await supabase
       .from("user_profiles")
-      .update({ scores })
+      .update({ scores: { ...newScores, history: existingHistory } })
       .eq("id", user.id);
 
     if (profileError) {
       return Response.json({ error: profileError.message }, { status: 500 });
     }
 
-    const { error: historyError } = await supabase
-      .from("score_history")
-      .insert({
-        user_id:           user.id,
-        overall_score:     scores.overall,
-        thinking_strategy: scores.thinkingStrategy,
-        execution:         scores.execution,
-        technical_fluency: scores.technicalFluency,
-        user_research:     scores.userResearch,
-        communication:     scores.communication,
-      });
-
-    if (historyError) {
-      // Profile was already updated; don't fail the whole request
-      return Response.json({ ok: true, historyWarning: historyError.message });
-    }
+    // Also try score_history table (best effort — failure is non-blocking)
+    await supabase.from("score_history").insert({
+      user_id:           user.id,
+      overall_score:     newScores.overall,
+      thinking_strategy: newScores.thinkingStrategy,
+      execution:         newScores.execution,
+      technical_fluency: newScores.technicalFluency,
+      user_research:     newScores.userResearch,
+      communication:     newScores.communication,
+    });
 
     return Response.json({ ok: true });
   } catch (error: unknown) {

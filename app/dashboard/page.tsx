@@ -31,16 +31,16 @@ export default async function DashboardPage() {
 
   if (!profile?.has_paid) redirect("/payment");
 
-  const rawScores = profile?.scores as Record<string, number> | null;
+  const rawScores = profile?.scores as Record<string, unknown> | null;
   if (!rawScores?.overall) redirect("/assessment");
 
   const scores: Scores = {
-    thinkingStrategy: rawScores.thinkingStrategy ?? 0,
-    execution:        rawScores.execution        ?? 0,
-    technicalFluency: rawScores.technicalFluency ?? 0,
-    userResearch:     rawScores.userResearch     ?? 0,
-    communication:    rawScores.communication    ?? 0,
-    overall:          rawScores.overall          ?? 0,
+    thinkingStrategy: Number(rawScores.thinkingStrategy) || 0,
+    execution:        Number(rawScores.execution)        || 0,
+    technicalFluency: Number(rawScores.technicalFluency) || 0,
+    userResearch:     Number(rawScores.userResearch)     || 0,
+    communication:    Number(rawScores.communication)    || 0,
+    overall:          Number(rawScores.overall)          || 0,
   };
 
   // Roadmap progress
@@ -50,35 +50,38 @@ export default async function DashboardPage() {
     .eq("user_id", user.id);
   const completedStepIds = (progressRows ?? []).map((r: { step_id: string }) => r.step_id);
 
-  // Score history — gracefully skip if table doesn't exist yet
+  // Score history — read from embedded history in scores first (guaranteed to work),
+  // then fall back to score_history table.
   let scoreHistory: { overall_score: number; evaluated_at: string }[] = [];
-  try {
-    const { data: historyRows, error } = await supabase
-      .from("score_history")
-      .select("overall_score, evaluated_at")
-      .eq("user_id", user.id)
-      .order("evaluated_at", { ascending: true });
 
-    if (!error && historyRows) {
-      scoreHistory = historyRows as { overall_score: number; evaluated_at: string }[];
-    }
+  const embeddedHistory = Array.isArray(rawScores.history)
+    ? (rawScores.history as { overall: number; evaluated_at: string }[])
+    : [];
 
-    // Seed first entry if empty
-    if (!error && (!historyRows || historyRows.length === 0)) {
-      await supabase.from("score_history").insert({
-        user_id:            user.id,
-        overall_score:      scores.overall,
-        thinking_strategy:  scores.thinkingStrategy,
-        execution:          scores.execution,
-        technical_fluency:  scores.technicalFluency,
-        user_research:      scores.userResearch,
-        communication:      scores.communication,
-      });
+  if (embeddedHistory.length >= 2) {
+    // Use embedded history (written by re-eval API route)
+    scoreHistory = embeddedHistory.map(h => ({
+      overall_score: h.overall,
+      evaluated_at:  h.evaluated_at,
+    }));
+  } else {
+    // Fall back to score_history table
+    try {
+      const { data: historyRows, error } = await supabase
+        .from("score_history")
+        .select("overall_score, evaluated_at")
+        .eq("user_id", user.id)
+        .order("evaluated_at", { ascending: true });
+
+      if (!error && historyRows && historyRows.length > 0) {
+        scoreHistory = historyRows as { overall_score: number; evaluated_at: string }[];
+      } else {
+        // Seed single baseline point
+        scoreHistory = [{ overall_score: scores.overall, evaluated_at: new Date().toISOString() }];
+      }
+    } catch {
       scoreHistory = [{ overall_score: scores.overall, evaluated_at: new Date().toISOString() }];
     }
-  } catch {
-    // Table not yet created — fall back to single-point history
-    scoreHistory = [{ overall_score: scores.overall, evaluated_at: new Date().toISOString() }];
   }
 
   return (
