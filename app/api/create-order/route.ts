@@ -11,26 +11,34 @@ export async function POST() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
           },
         },
       }
     );
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    console.log("Session:", session?.user?.email);
-    console.log("Razorpay key exists:", !!process.env.RAZORPAY_KEY_ID);
-
-    if (!session) {
+    if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID!,
-      key_secret: process.env.RAZORPAY_KEY_SECRET!,
-    });
+    // NEXT_PUBLIC_RAZORPAY_KEY_ID is the env var name in Vercel
+    const keyId = process.env.RAZORPAY_KEY_ID ?? process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      console.error("Razorpay keys missing. keyId:", !!keyId, "keySecret:", !!keySecret);
+      return Response.json({ error: "Payment provider not configured" }, { status: 500 });
+    }
+
+    const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
 
     const order = await razorpay.orders.create({
       amount: 10000,
@@ -40,10 +48,7 @@ export async function POST() {
 
     return Response.json({ order_id: order.id });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : JSON.stringify(error, null, 2);
+    const message = error instanceof Error ? error.message : JSON.stringify(error, null, 2);
     console.error("Create order error:", message);
     return Response.json({ error: message }, { status: 500 });
   }
