@@ -55,6 +55,26 @@ export default function PaymentPage() {
       }
       setEmail(user.email ?? "");
 
+      // Migrate assessment data from localStorage to user_profiles.
+      // Done here (client-side, post-auth) instead of through OAuth URL params.
+      const rawScores  = localStorage.getItem("assessment_scores");
+      const archetype  = localStorage.getItem("assessment_archetype");
+      const background = localStorage.getItem("warmup_background");
+      const experience = localStorage.getItem("warmup_experience");
+      const industry   = localStorage.getItem("warmup_industry");
+      if (rawScores || archetype || background || experience || industry) {
+        await supabase.from("user_profiles").update({
+          ...(archetype  && { archetype }),
+          ...(rawScores  && { scores: (() => { try { return JSON.parse(rawScores); } catch { return null; } })() }),
+          ...(background && { warmup_background: background }),
+          ...(experience && { warmup_experience: experience }),
+          ...(industry   && { warmup_industry:   industry }),
+        }).eq("id", user.id);
+        // Clear so we don't re-run on subsequent visits
+        ["assessment_scores","assessment_archetype","warmup_background","warmup_experience","warmup_industry"]
+          .forEach(k => localStorage.removeItem(k));
+      }
+
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("has_paid")

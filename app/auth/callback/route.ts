@@ -57,26 +57,9 @@ export async function GET(request: NextRequest) {
     { onConflict: "id", ignoreDuplicates: true }
   );
 
-  // FIX 2 — Migrate assessment data from URL params (passed by signup page before OAuth).
-  // Cookies were unreliable across OAuth redirects on Vercel; URL params are not.
-  const rawScores  = searchParams.get("assessment_scores");
-  const archetype  = searchParams.get("assessment_archetype");
-  const background = searchParams.get("warmup_background");
-  const experience = searchParams.get("warmup_experience");
-  const industry   = searchParams.get("warmup_industry");
-
-  if (rawScores || archetype || background || experience || industry) {
-    await supabase
-      .from("user_profiles")
-      .update({
-        ...(archetype  && { archetype }),
-        ...(rawScores  && { scores: (() => { try { return JSON.parse(rawScores); } catch { return null; } })() }),
-        ...(background && { warmup_background: background }),
-        ...(experience && { warmup_experience: experience }),
-        ...(industry   && { warmup_industry:   industry }),
-      })
-      .eq("id", user.id);
-  }
+  // Assessment data (scores, archetype, warmup answers) lives in localStorage.
+  // It is migrated to user_profiles client-side by the /payment page after login,
+  // which is more reliable than passing it through OAuth URL params.
 
   return redirectResponse;
 }

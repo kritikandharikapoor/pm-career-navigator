@@ -11,23 +11,7 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
 
-    // Read localStorage data and pass as URL params in redirectTo.
-    // Using window.location.origin directly (not state) avoids a race where
-    // state hasn't been set yet when the button is clicked.
-    const params = new URLSearchParams();
-    const lsKeys: [string, string][] = [
-      ["assessment_scores",    "assessment_scores"],
-      ["assessment_archetype", "assessment_archetype"],
-      ["warmup_background",    "warmup_background"],
-      ["warmup_experience",    "warmup_experience"],
-      ["warmup_industry",      "warmup_industry"],
-    ];
-    lsKeys.forEach(([paramKey, lsKey]) => {
-      const val = localStorage.getItem(lsKey);
-      if (val) params.set(paramKey, val);
-    });
-
-    const redirectTo = `${window.location.origin}/auth/callback?${params.toString()}`;
+    const redirectTo = `${window.location.origin}/auth/callback`;
 
     const supabase = createClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
