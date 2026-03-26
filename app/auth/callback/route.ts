@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
   // which is more reliable than passing it through OAuth URL params.
 
   // Track signup — fire-and-forget, non-blocking
-  fetch("https://app.posthog.com/capture/", {
+  fetch("https://us.i.posthog.com/capture/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

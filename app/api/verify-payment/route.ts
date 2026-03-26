@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     }
 
     // Track payment — fire-and-forget, non-blocking
-    fetch("https://app.posthog.com/capture/", {
+    fetch("https://us.i.posthog.com/capture/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
