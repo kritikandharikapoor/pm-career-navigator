@@ -31,6 +31,7 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  // No session → back to sign-in
   if (!user) {
     return NextResponse.redirect(new URL("/auth/signup", request.url));
   }
@@ -41,6 +42,8 @@ export async function proxy(request: NextRequest) {
     .eq("id", user.id)
     .single();
 
+  // FIX 4 — No profile row (race condition / upsert not yet run) OR has_paid is false.
+  // Either way → send to /payment, never back to /auth/signup (avoids redirect loop).
   if (!profile?.has_paid) {
     return NextResponse.redirect(new URL("/payment", request.url));
   }

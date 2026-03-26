@@ -3,11 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 
-// Cookie helper — persists localStorage data through the OAuth redirect
-function setPmCookie(name: string, value: string) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=600; SameSite=Lax`;
-}
-
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [origin, setOrigin] = useState("");
@@ -19,26 +14,28 @@ export default function SignupPage() {
   async function handleGoogleSignIn() {
     setLoading(true);
 
-    // Persist assessment data in cookies so the callback can write it to Supabase
-    const keys = [
-      ["pm_scores", "assessment_scores"],
-      ["pm_archetype", "assessment_archetype"],
-      ["pm_background", "warmup_background"],
-      ["pm_experience", "warmup_experience"],
-      ["pm_industry", "warmup_industry"],
-    ] as const;
-
-    keys.forEach(([cookieName, lsKey]) => {
+    // FIX 3 — Pass localStorage data as URL params in the redirectTo URL.
+    // Cookies were unreliable across OAuth redirects on Vercel (SameSite / domain issues).
+    // URL params survive the full OAuth round-trip and are available in the callback.
+    const params = new URLSearchParams();
+    const lsKeys: [string, string][] = [
+      ["assessment_scores",    "assessment_scores"],
+      ["assessment_archetype", "assessment_archetype"],
+      ["warmup_background",    "warmup_background"],
+      ["warmup_experience",    "warmup_experience"],
+      ["warmup_industry",      "warmup_industry"],
+    ];
+    lsKeys.forEach(([paramKey, lsKey]) => {
       const val = localStorage.getItem(lsKey);
-      if (val) setPmCookie(cookieName, val);
+      if (val) params.set(paramKey, val);
     });
+
+    const redirectTo = `${origin}/auth/callback?${params.toString()}`;
 
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: `${origin}/auth/callback`,
-      },
+      options: { redirectTo },
     });
     // Page redirects — no need to setLoading(false)
   }

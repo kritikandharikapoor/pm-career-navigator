@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+
+// IMPORTANT — ensure both of these are in Supabase Auth → URL Configuration → Redirect URLs:
+//   https://pm-career-navigator.vercel.app/auth/callback
+//   http://localhost:3002/auth/callback
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -10,7 +13,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/auth/signup?error=no_code`);
   }
 
-  const cookieStore = await cookies();
+  // Create the redirect response FIRST so auth cookies are set directly on it.
+  // Previously this was done after the fact, losing the session on Vercel.
+  const redirectResponse = NextResponse.redirect(`${origin}/payment`);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,11 +23,13 @@ export async function GET(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          // Write to both request (so subsequent reads work) and the response we'll return
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            redirectResponse.cookies.set(name, value, options)
           );
         },
       },
@@ -37,38 +44,39 @@ export async function GET(request: NextRequest) {
 
   const user = data.user;
 
-  // Read assessment data from cookies set by the signup page
-  function getCookieVal(name: string): string | null {
-    const val = cookieStore.get(name)?.value;
-    return val ? decodeURIComponent(val) : null;
-  }
-
-  const rawScores   = getCookieVal("pm_scores");
-  const archetype   = getCookieVal("pm_archetype");
-  const background  = getCookieVal("pm_background");
-  const experience  = getCookieVal("pm_experience");
-  const industry    = getCookieVal("pm_industry");
-
-  // Upsert user_profiles row
+  // FIX 1 — Always ensure a user_profiles row exists.
+  // ignoreDuplicates: true means existing rows (and their has_paid value) are untouched.
   await supabase.from("user_profiles").upsert(
     {
-      id: user.id,
-      email: user.email,
-      ...(archetype   && { archetype }),
-      ...(rawScores   && { scores: JSON.parse(rawScores) }),
-      ...(background  && { warmup_background: background }),
-      ...(experience  && { warmup_experience: experience }),
-      ...(industry    && { warmup_industry: industry }),
+      id:        user.id,
+      email:     user.email,
+      has_paid:  false,
+      scores:    null,
+      archetype: null,
     },
-    { onConflict: "id" }
+    { onConflict: "id", ignoreDuplicates: true }
   );
 
-  // Clear pm_* cookies
-  const pmCookies = ["pm_scores", "pm_archetype", "pm_background", "pm_experience", "pm_industry"];
-  const response = NextResponse.redirect(`${origin}/payment`);
-  pmCookies.forEach((name) => {
-    response.cookies.set(name, "", { maxAge: 0, path: "/" });
-  });
+  // FIX 2 — Migrate assessment data from URL params (passed by signup page before OAuth).
+  // Cookies were unreliable across OAuth redirects on Vercel; URL params are not.
+  const rawScores  = searchParams.get("assessment_scores");
+  const archetype  = searchParams.get("assessment_archetype");
+  const background = searchParams.get("warmup_background");
+  const experience = searchParams.get("warmup_experience");
+  const industry   = searchParams.get("warmup_industry");
 
-  return response;
+  if (rawScores || archetype || background || experience || industry) {
+    await supabase
+      .from("user_profiles")
+      .update({
+        ...(archetype  && { archetype }),
+        ...(rawScores  && { scores: (() => { try { return JSON.parse(rawScores); } catch { return null; } })() }),
+        ...(background && { warmup_background: background }),
+        ...(experience && { warmup_experience: experience }),
+        ...(industry   && { warmup_industry:   industry }),
+      })
+      .eq("id", user.id);
+  }
+
+  return redirectResponse;
 }
