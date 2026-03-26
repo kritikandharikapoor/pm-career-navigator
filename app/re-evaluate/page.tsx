@@ -232,7 +232,8 @@ export default function ReevaluatePage() {
       body: JSON.stringify(newScores),
     });
 
-    router.push("/dashboard");
+    // Full reload ensures the server component re-fetches score_history fresh
+    window.location.href = "/dashboard";
   }
 
   // ── Loading / Saving ────────────────────────────────────────────────────
