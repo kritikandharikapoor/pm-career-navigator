@@ -393,6 +393,19 @@ export default function DashboardClient({
         <p className="text-sm font-semibold" style={{ color: "#E8EFF8" }}>
           Readiness Score Over Time
         </p>
+        {chartData.length < 2 ? (
+          <div
+            className="flex flex-col items-center justify-center gap-2"
+            style={{ height: 190 }}
+          >
+            <p className="text-sm" style={{ color: "rgba(232,239,248,0.35)" }}>
+              Re-evaluate to track your score over time
+            </p>
+            <p className="text-xs" style={{ color: "rgba(232,239,248,0.2)" }}>
+              Your baseline score of {scores.overall.toFixed(1)} has been recorded
+            </p>
+          </div>
+        ) : (
         <div style={{ height: 190 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 12, right: 16, bottom: 0, left: -16 }}>
@@ -449,6 +462,7 @@ export default function DashboardClient({
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        )}
       </Card>
 
     </div>
