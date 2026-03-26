@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { posthog } from "@/lib/posthog";
 
 const QUESTION = "What best describes your professional background so far?";
 const OPTIONS = [
@@ -37,6 +38,10 @@ function ProgressDots({ current }: { current: 1 | 2 | 3 }) {
 export default function OnboardingStep1() {
   const [selected, setSelected] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    posthog.capture("onboarding_started");
+  }, []);
 
   function handleContinue() {
     if (!selected) return;

@@ -61,5 +61,17 @@ export async function GET(request: NextRequest) {
   // It is migrated to user_profiles client-side by the /payment page after login,
   // which is more reliable than passing it through OAuth URL params.
 
+  // Track signup — fire-and-forget, non-blocking
+  fetch("https://app.posthog.com/capture/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+      event: "signup_completed",
+      distinct_id: user.id,
+      properties: { email: user.email },
+    }),
+  }).catch(() => {});
+
   return redirectResponse;
 }

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import Sidebar from "@/app/components/Sidebar";
+import PageTracker from "@/app/components/PageTracker";
 import RoadmapClient from "./RoadmapClient";
 import type { Scores } from "@/lib/data/assessment";
 
@@ -59,6 +60,7 @@ export default async function RoadmapPage() {
 
   return (
     <div className="flex" style={{ backgroundColor: "#0D1117", minHeight: "100vh" }}>
+      <PageTracker event="roadmap_viewed" />
       <Sidebar userEmail={user.email ?? ""} activePath="/roadmap" />
       <main
         className="flex-1 min-h-screen px-8 py-10"

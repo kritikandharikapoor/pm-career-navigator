@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { posthog } from "@/lib/posthog";
 import {
   QUESTIONS,
   DIMENSION_LABELS,
@@ -60,6 +61,10 @@ export default function AssessmentPage() {
       const archetype = assignArchetype(scores);
       localStorage.setItem("assessment_scores", JSON.stringify(scores));
       localStorage.setItem("assessment_archetype", archetype);
+      posthog.capture("assessment_completed", {
+        archetype,
+        overall_score: scores.overall,
+      });
       router.push("/results/partial");
       return;
     }

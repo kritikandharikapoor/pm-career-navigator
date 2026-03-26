@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
 import { createClient } from "@/lib/supabase"; // used for auth check + profile fetch
+import { posthog } from "@/lib/posthog";
 import {
   reevalQuestions,
   type ReevalQuestion,
@@ -130,6 +131,7 @@ export default function ReevaluatePage() {
   const [userId, setUserId]         = useState("");
   const [questions, setQuestions]   = useState<ReevalQuestion[]>([]);
   const [weakestDim, setWeakestDim] = useState<ReevalDimension>("thinkingStrategy");
+  const [previousScore, setPreviousScore] = useState<number | null>(null);
 
   const [qIdx, setQIdx]       = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -160,6 +162,7 @@ export default function ReevaluatePage() {
       setUserId(user.id);
 
       const raw = profile?.scores as Record<string, number> | null;
+      setPreviousScore(raw?.overall ?? null);
       const scores: Record<string, number> = {
         thinkingStrategy: raw?.thinkingStrategy ?? 2.5,
         execution:        raw?.execution        ?? 2.5,
@@ -225,6 +228,11 @@ export default function ReevaluatePage() {
 
   async function saveResults(finalAnswers: Answer[]) {
     const newScores = computeNewScores(finalAnswers);
+
+    posthog.capture("reeval_completed", {
+      new_score: newScores.overall,
+      previous_score: previousScore,
+    });
 
     await fetch("/api/save-reeval-scores", {
       method: "POST",

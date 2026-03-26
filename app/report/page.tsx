@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import ResultsRadar from "@/app/components/ResultsRadar";
 import Sidebar from "@/app/components/Sidebar";
+import PageTracker from "@/app/components/PageTracker";
 import type { Scores } from "@/lib/data/assessment";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -274,6 +275,7 @@ export default async function ReportPage() {
 
   return (
     <div className="flex" style={{ backgroundColor: "#0D1117", minHeight: "100vh" }}>
+      <PageTracker event="report_viewed" />
       {/* Sidebar */}
       <Sidebar userEmail={user.email ?? ""} activePath="/report" />
 

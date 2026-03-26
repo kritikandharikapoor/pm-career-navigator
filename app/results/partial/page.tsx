@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { posthog } from "@/lib/posthog";
 import ResultsRadar from "@/app/components/ResultsRadar";
 import type { Scores } from "@/lib/data/assessment";
 
@@ -176,6 +177,7 @@ export default function PartialResultsPage() {
 
     if (rawScores) {
       setData({ scores: JSON.parse(rawScores), archetype, background, industry });
+      posthog.capture("partial_results_viewed");
     }
   }, []);
 

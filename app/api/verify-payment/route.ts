@@ -60,6 +60,18 @@ export async function POST(request: Request) {
       return Response.json({ error: "DB update failed" }, { status: 500 });
     }
 
+    // Track payment — fire-and-forget, non-blocking
+    fetch("https://app.posthog.com/capture/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+        event: "payment_completed",
+        distinct_id: session.user.id,
+        properties: { amount: 100 },
+      }),
+    }).catch(() => {});
+
     return Response.json({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import SkillRadar from "./components/SkillRadar";
+import LandingTracker from "./components/LandingTracker";
 
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#0D1117", color: "#E8EFF8" }}>
+      <LandingTracker />
       {/* ─── Sticky Nav ─── */}
       <nav
         className="sticky top-0 z-50 flex items-center justify-between px-6 lg:px-16 py-4"

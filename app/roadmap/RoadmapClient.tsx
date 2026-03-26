@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
+import { posthog } from "@/lib/posthog";
 import { contentLibrary, type Archetype } from "@/lib/data/content_library";
 import type { Scores } from "@/lib/data/assessment";
 
@@ -279,6 +280,7 @@ export default function RoadmapClient({ archetype, scores, completedStepIds, fir
       dimension,
     });
     if (error && error.code !== "23505") return;
+    posthog.capture("step_marked_done", { step_id: topicKey, dimension });
     setCompletedSteps(prev => new Set([...prev, topicKey]));
   }
 
