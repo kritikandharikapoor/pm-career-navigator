@@ -437,7 +437,7 @@ export default function DashboardClient({
                   color: "#E8EFF8",
                   fontSize: 12,
                 }}
-                formatter={(val: number) => [val.toFixed(1), "Score"]}
+                formatter={(val) => [Number(val).toFixed(1), "Score"]}
               />
               <ReferenceLine
                 y={3.5}
